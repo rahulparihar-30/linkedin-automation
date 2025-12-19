@@ -1,9 +1,14 @@
 package filters
 
-import "github.com/go-rod/rod"
+import (
+	"fmt"
+
+	"github.com/go-rod/rod"
+)
 
 func GoToPeople(page *rod.Page) {
 	page.MustElementR("button", "People").MustClick()
+	fmt.Println("Button found and waiting...")
 	page.MustWaitLoad()
 }
 
