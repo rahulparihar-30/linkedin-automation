@@ -3,6 +3,7 @@ package collector
 import (
 	"encoding/csv"
 	"fmt"
+	"io"
 	"linkedin-automation/internal/pagination"
 	"os"
 	"time"
@@ -12,16 +13,21 @@ import (
 
 var csvFile *os.File
 var csvWriter *csv.Writer
+var seen = make(map[string]bool)
 
-func InitCSV() {
+func InitCSV(file_path string) {
 	var err error
-	csvFile, err = os.Create("profiles.csv")
+
+	csvFile, err = os.OpenFile(
+		file_path,
+		os.O_CREATE|os.O_APPEND|os.O_RDWR,
+		0644,
+	)
 	if err != nil {
 		panic(err)
 	}
+
 	csvWriter = csv.NewWriter(csvFile)
-	csvWriter.Write([]string{"Name", "Link", "Headline"}) // Added Headline column
-	csvWriter.Flush()
 	fmt.Println("CSV File Initialized.")
 }
 
@@ -32,25 +38,49 @@ func CloseCSV() {
 	}
 }
 
+func LoadExisting(filePath string) {
+	file, _ := os.Open(filePath)
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if len(row) > 0 {
+			seen[row[0]] = true
+		}
+	}
+}
+
 func ExtractAllPageNo(page *rod.Page) {
 	pageNo := 1
+
 	for {
 		fmt.Printf("\n--- Processing Page %d ---\n", pageNo)
+
+		page.Timeout(5 * time.Second).
+			MustElement(`div[data-view-name="people-search-result"]`)
+
 		ExtractProfiles(page)
 
 		if !pagination.NextPage(page) {
-			fmt.Println("No More Pages.")
 			break
 		}
+
 		pageNo++
+		if pageNo > 3 {
+			break
+		}
 	}
 }
 
 func ExtractProfiles(page *rod.Page) {
 	fmt.Println("   Scanning for profiles...")
 
-	// 1. Selector for the list items
-	selector := `li`
+	// Selector for the list items (cards)
+	selector := `div[data-view-name="people-search-result"]`
 
 	// Wait for elements to appear
 	if _, err := page.Timeout(10 * time.Second).Element(selector); err != nil {
@@ -73,21 +103,25 @@ func ExtractProfiles(page *rod.Page) {
 			info.Name != "LinkedIn Member (Restricted)" &&
 			info.Link != "N/A" {
 
-			count++
-			fmt.Printf("   -> Saving: %s\n", info.Name)
+			if !seen[info.Link] {
+				seen[info.Link] = true
+				count++
+				fmt.Printf("   -> Saving: %s\n", info.Name)
 
-			if csvWriter != nil {
-				// Use 3 columns now (Name, Link, Headline)
-				csvWriter.Write([]string{info.Name, info.Link, info.Headline})
-				csvWriter.Flush()
+				if csvWriter != nil {
+					// Use 3 columns (Link, Name, Headline)
+					// Important: Link must be first for profile.LoadData to work correctly
+					csvWriter.Write([]string{info.Link, info.Name})
+					csvWriter.Flush()
+				}
 			}
 		}
 	}
 
 	if count == 0 {
-		fmt.Println("All profiles on this page were restricted 'LinkedIn Members'.")
+		fmt.Println("No new valid profiles found on this page.")
 	} else {
-		fmt.Printf("Saved %d valid profiles.\n", count)
+		fmt.Printf("Saved %d new valid profiles.\n", count)
 	}
 }
 

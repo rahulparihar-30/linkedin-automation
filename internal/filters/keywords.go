@@ -14,6 +14,7 @@ func ByKeywords(page *rod.Page, k Keywords) {
 	keywordsSection := page.MustElementR("h3", "Keywords").
 		MustParent().
 		MustElement("ul")
+	keywordsSection.ScrollIntoView()
 
 	inputs := keywordsSection.MustElements("input.mt1")
 

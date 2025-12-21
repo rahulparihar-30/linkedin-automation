@@ -6,31 +6,43 @@ import (
 	"linkedin-automation/internal/browser"
 	"linkedin-automation/internal/collector"
 	"linkedin-automation/internal/filters"
+	"linkedin-automation/internal/messaging"
+	"linkedin-automation/internal/profile"
 	"linkedin-automation/internal/search"
 )
 
 func main() {
-	browser, page := browser.New()
-	defer browser.MustClose()
+	br, page := browser.New()
+	defer br.MustClose()
 
+	// 1️⃣ Login
 	auth.LogIn(page)
-	search.Search(page, "software engineer")
 
-	filters.GoToPeople(page)
-	collector.InitCSV()
+	collector.InitCSV("profiles.csv")
 	defer collector.CloseCSV()
-	fmt.Println("Done Creating the csv.")
-	fmt.Println("Extracting pages")
-	collector.ExtractAllPageNo(page)
 
-	// collector.Parse(page)
+	collector.LoadExisting("profiles.csv")
 
-	// filters.OpenFilters(page)
-	// filters.ByLocation(page, "Nepal")
+	search.Search(page, "Adobe")
+	filters.GoToPeople(page)
+	filters.OpenFilters(page)
+	// Optional
+	filters.ByLocation(page, "Nepal")
+	// Optional
 	// filters.ByKeywords(page, filters.Keywords{
 	// 	FirstName: "Rahul",
-	// 	Title:     "Software Engineer",
-	// 	Company:   "Google",
+	// 	Title:     "Software Developer",
 	// })
-	// filters.ApplyFilters(page)
+	filters.ApplyFilters(page)
+
+	collector.ExtractAllPageNo(page)
+	fmt.Println("All profiles are collected.")
+
+	profile.LoadData("profiles.csv")
+	profile.ConnectAll(page)
+
+	followUpTemplate := `Hi {{firstName}}, thanks for connecting!
+Looking forward to staying in touch 🙂`
+	messaging.ProcessNewConnections(page, followUpTemplate)
+
 }

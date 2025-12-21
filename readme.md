@@ -29,3 +29,39 @@
 <input type="checkbox"> Send follow-up messages automatically<br>
 <input type="checkbox"> Support templates with dynamic variables<br>
 <input type="checkbox"> Maintain comprehensive message tracking
+
+## Setup
+
+### Prerequisites
+- [Go](https://go.dev/dl/) installed on your machine.
+- A LinkedIn account.
+
+### Installation
+
+1.  **Clone the repository**:
+    ```bash
+    git clone <repository-url>
+    cd linkedin-automation
+    ```
+
+2.  **Install dependencies**:
+    ```bash
+    go mod tidy
+    ```
+
+3.  **Configure Environment Variables**:
+    Create a `.env` file in the root directory and add your LinkedIn credentials:
+    ```env
+    username=your_email@example.com
+    password=your_password
+    ```
+
+4.  **Run the Bot**:
+    ```bash
+    go run cmd/app/main.go
+    ```
+    Or build and run:
+    ```bash
+    go build -o linkedin-bot cmd/app/main.go
+    ./linkedin-bot
+    ```
